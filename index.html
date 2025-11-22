@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SleepSync</title>
+<style>
+  :root{
+    --bg1:#071018;
+    --bg2:#08121b;
+    --card: rgba(255,255,255,0.04);
+    --accent:#3df5c0;
+    --muted:#bfeee0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    background: linear-gradient(160deg,var(--bg1),var(--bg2));
+    color:#e6f7f2;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+  }
+
+  .card{
+    width:100%;
+    max-width:640px;
+    background: var(--card);
+    border-radius:14px;
+    padding:26px;
+    box-shadow:0 10px 40px rgba(2,8,15,0.7);
+    backdrop-filter: blur(8px);
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  .logo-wrap{ text-align:center; margin:6px 0 8px; }
+  img.logo { width:150px; filter: drop-shadow(0 6px 18px rgba(61,245,192,0.18)); display:inline-block; }
+
+  h1{
+    text-align:center;
+    color:#aef3de;
+    margin:6px 0 12px;
+    font-size:30px;
+    letter-spacing:0.4px;
+  }
+
+  label{ display:block; font-size:14px; color:var(--muted); margin:12px 0 6px; }
+  input[type="number"], input[type="text"], input[type="time"], select{
+    width:100%;
+    padding:12px 12px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.03);
+    color:#eafaf4;
+    font-size:15px;
+    box-sizing:border-box;
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+  }
+
+  /* Dark dropdown style (Option A) */
+  select {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    color: #fff;
+  }
+  select option {
+    color: #000; /* note: some browsers ignore option color; primary fix is select background & text */
+  }
+
+  input:focus, select:focus { box-shadow:0 0 12px rgba(61,245,192,0.14); outline:none; border-color:rgba(61,245,192,0.18); }
+
+  .row{ display:flex; gap:12px; }
+  .row .col{ flex:1; }
+
+  button{
+    width:100%;
+    margin-top:18px;
+    padding:13px;
+    background:linear-gradient(90deg,#2abf9b,#1f6feb);
+    color:#071018;
+    font-weight:700;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    box-shadow:0 8px 18px rgba(13,83,110,0.18);
+  }
+  button:hover{ transform:translateY(-2px); }
+
+  .result{
+    margin-top:18px;
+    background:rgba(255,255,255,0.03);
+    padding:16px;
+    border-radius:10px;
+    font-size:15px;
+    color:#e6f7f2;
+    line-height:1.45;
+    border:1px solid rgba(255,255,255,0.02);
+    white-space:pre-wrap;
+  }
+
+  .muted-note{ font-size:13px; color:var(--muted); opacity:0.95; margin-top:10px; text-align:center; }
+
+  /* small responsiveness */
+  @media (max-width:520px){
+    .card{ padding:20px; }
+    img.logo{ width:130px; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="card" role="main" aria-labelledby="title">
+  <div class="logo-wrap">
+    <img id="logo" class="logo" src="logo.png" alt="SleepSync logo">
+  </div>
+
+  <h1 id="title">SleepSync</h1>
+
+  <label for="age">Age</label>
+  <input id="age" type="number" min="5" max="120" placeholder="Enter your age">
+
+  <div class="row">
+    <div class="col">
+      <label for="gender">Gender</label>
+      <select id="gender" aria-label="Gender">
+        <option value="">Select</option>
+        <option>Male</option>
+        <option>Female</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="col">
+      <label for="activity">Activity Level (today)</label>
+      <select id="activity" aria-label="Activity Level">
+        <option value="">Select</option>
+        <option value="low">Low — mostly sitting / light mental</option>
+        <option value="moderate">Moderate — moving, normal work/study</option>
+        <option value="high">High — intense physical or heavy mental work</option>
+      </select>
+    </div>
+  </div>
+
+  <label for="profession">Profession (or main daily task)</label>
+  <input id="profession" type="text" placeholder="e.g., Student, Software dev, Teacher">
+
+  <label for="sleepHours">Hours slept last night</label>
+  <input id="sleepHours" type="number" step="0.1" min="0" max="24" placeholder="e.g., 6.5">
+
+  <label for="wakeTime">Desired wake-up time tomorrow</label>
+  <input id="wakeTime" type="time">
+
+  <button id="btn">Get AI Recommendation</button>
+
+  <div id="output" class="result" style="display:none"></div>
+
+  <div class="muted-note" id="savedNote" style="display:none"></div>
+</div>
+
+<script>
+/* ---------- Logo fallback (tries multiple filenames then hides) ---------- */
+(function setupLogoFallback(){
+  const logo = document.getElementById('logo');
+  const tryNames = ["logo.png","SleepSync.png","SleepSync.svg","logo.svg"];
+  let attempt = 0;
+  logo.onerror = function() {
+    attempt++;
+    if (attempt < tryNames.length) {
+      logo.src = tryNames[attempt];
+      return;
+    }
+    logo.style.display = 'none';
+  };
+})();
+
+/* ---------- localStorage keys & load ---------- */
+const fields = ["age","gender","profession","activity","sleepHours","wakeTime"];
+window.addEventListener("DOMContentLoaded", () => {
+  let foundAny = false;
+  fields.forEach(f => {
+    const el = document.getElementById(f);
+    const saved = localStorage.getItem("sleepsync_" + f);
+    if (saved !== null && el) {
+      el.value = saved;
+      foundAny = true;
+    }
+    if (el) el.addEventListener("input", () => {
+      localStorage.setItem("sleepsync_" + f, el.value);
+    });
+  });
+  // show small saved note if we have previous data
+  if (foundAny) {
+    const n = document.getElementById("savedNote");
+    n.style.display = "block";
+    n.textContent = "Welcome back — your previous inputs were loaded from this device.";
+  }
+});
+
+/* ---------- recommendation logic ---------- */
+document.getElementById("btn").addEventListener("click", () => {
+  const age = parseInt(document.getElementById("age").value || "0", 10);
+  const gender = document.getElementById("gender").value || "Not specified";
+  const profession = (document.getElementById("profession").value || "Not specified").trim();
+  const activity = document.getElementById("activity").value; // low/moderate/high
+  const sleepHours = parseFloat(document.getElementById("sleepHours").value || "0");
+  const wakeTime = document.getElementById("wakeTime").value || "";
+
+  // save
+  fields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) localStorage.setItem("sleepsync_" + f, el.value);
+  });
+
+  const outEl = document.getElementById("output");
+  outEl.style.display = "block";
+
+  // validation
+  if (!age || !activity || !wakeTime) {
+    outEl.textContent = "Please enter Age, Activity Level, and Desired Wake-up Time to get a recommendation.";
+    return;
+  }
+
+  // base recommended sleep by age
+  let base = 8.0;
+  if (age <= 12) base = 9.5;
+  else if (age <= 17) base = 8.5;
+  else if (age >= 65) base = 7.0;
+
+  // activity adjustments
+  if (activity === "moderate") base += 0.35;
+  if (activity === "high") base += 0.8;
+
+  // mental-profession boost
+  const mentalKeywords = ["dev","software","program","teacher","doctor","law","finance","study","student","research"];
+  if (profession && mentalKeywords.some(k => profession.toLowerCase().includes(k))) base += 0.3;
+
+  // sleep debt
+  let debt = base - sleepHours;
+  if (debt < 0) debt = 0;
+
+  // bedtime calculation
+  const [wh, wm] = wakeTime.split(":").map(n => parseInt(n||"0",10));
+  let wakeMinutes = (isNaN(wh)?7:wh)*60 + (isNaN(wm)?0:wm);
+  let bedtimeMinutes = wakeMinutes - Math.round(base * 60);
+  while (bedtimeMinutes < 0) bedtimeMinutes += 24*60;
+  const bedH = Math.floor(bedtimeMinutes/60);
+  const bedM = bedtimeMinutes % 60;
+  const bedtimeDisplay = `${String((bedH%12)||12).padStart(2,"0")}:${String(bedM).padStart(2,"0")} ${bedH>=12?'PM':'AM'}`;
+
+  // nap suggestion
+  let napAdvice = "";
+  if (debt <= 0.8) napAdvice = "No nap needed; a short 10–15 min power nap before 3 PM is OK if you feel sleepy.";
+  else if (debt <= 2.2) napAdvice = "A 20–30 min nap between 1 PM and 3 PM helps restore alertness.";
+  else napAdvice = "High sleep debt — take a 25–40 min restorative nap between noon and 2:30 PM; avoid late naps.";
+
+  if (activity === "high") napAdvice += " (Activity today increases recovery need.)";
+
+  // sleep score
+  let score = Math.round(Math.max(10, Math.min(100, (sleepHours / base) * 100)));
+  score = Math.max(0, Math.min(100, score));
+
+  // tips
+  const tips = [];
+  if (profession.toLowerCase().includes("student")) tips.push("Avoid screens 45 minutes before bed; keep a consistent study cutoff.");
+  if (profession.toLowerCase().includes("dev")) tips.push("Take micro-breaks to reduce cognitive load before bedtime.");
+  if (activity === "high") tips.push("Hydrate and do a short wind-down routine for muscle recovery.");
+  if (age < 18) tips.push("Teens need more REM—aim for an earlier bedtime.");
+  tips.push("Avoid caffeine 6 hours before bed and dim lights 45 minutes before sleep.");
+
+  // compose message
+  const lines = [
+    `🌙 Recommended bedtime tonight: ${bedtimeDisplay}`,
+    `🛌 Target nightly sleep: ${base.toFixed(1)} hours`,
+    `😴 Sleep deficit (approx): ${debt.toFixed(1)} hours`,
+    `⭐ Sleep score: ${score} / 100`,
+    ``,
+    `🔋 Nap suggestion:\n${napAdvice}`,
+    ``,
+    `🧾 Personalized tips:`,
+    ...tips.map(t => `- ${t}`),
+    ``,
+    `⏰ Wake-up target: ${wakeTime}`,
+    `👤 Age: ${age}  •  Gender: ${gender}`,
+    `💼 Profession: ${profession}`,
+    `🏃 Activity level today: ${activity}`
+  ];
+
+  outEl.textContent = lines.join("\n\n");
+});
+</script>
+
+</body>
+</html>
